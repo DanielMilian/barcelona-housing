@@ -10,3 +10,11 @@ models:
   housing:
     staging:
       +materialized: view
+    marts:
+      +materialized: table
+
+seeds:
+  housing:
+    dim_district:
+      +column_types:
+        district_code: text
