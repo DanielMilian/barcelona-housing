@@ -1,0 +1,12 @@
+name: housing
+version: "0.1.0"
+config-version: 2
+profile: housing
+
+model-paths: ["models"]
+test-paths: ["tests"]
+
+models:
+  housing:
+    staging:
+      +materialized: view

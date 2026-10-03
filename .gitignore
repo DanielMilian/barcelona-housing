@@ -2,3 +2,6 @@
 __pycache__/
 data/
 .env
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/

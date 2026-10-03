@@ -1,0 +1,76 @@
+version: 2
+
+models:
+  - name: stg_serpavi
+    columns:
+      - name: district_code
+        data_tests: [not_null]
+      - name: measure
+        data_tests:
+        - not_null
+        - accepted_values:
+            arguments:
+              values: [lease_count, rent_eur_per_m2_month, rent_eur_month, surface_m2]
+      - name: housing_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [VC, VU]
+      - name: year
+        data_tests: [not_null]
+
+  - name: stg_ine_income
+    columns:
+      - name: geo_level
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [district, municipality]
+      - name: district_code
+        data_tests:
+          - not_null:
+              config:
+                where: "geo_level = 'district'"
+      - name: indicator
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - Average net income per person
+                  - Average household net income
+                  - Average income by unit of consumption
+                  - Median income by unit of consumption
+                  - Median household income
+                  - Average per person gross income
+                  - Average household income
+      - name: year
+        data_tests: [not_null]
+
+  - name: stg_ine_rent_index
+    columns:
+      - name: district_code
+        data_tests: [not_null]
+      - name: measure
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [index, annual_variation_pct]
+      - name: breakdown
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [Total]
+      - name: year
+        data_tests: [not_null]
+
+  - name: stg_ine_cpi
+    columns:
+      - name: month
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                quote: false
+      - name: cpi_index
+        data_tests: [not_null]
