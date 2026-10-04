@@ -33,7 +33,7 @@ select
 	d.district_name,
 	w.year,
 	w.income_eur,
-	w.rent_eur_month,
+	round(w.rent_eur_month, 2)							as rent_eur_month,
 	w.rent_eur_m2_median,
 	w.lease_count,
 	round(w.rent_eur_month * 12 / w.income_eur, 4)					as rent_to_income_ratio,

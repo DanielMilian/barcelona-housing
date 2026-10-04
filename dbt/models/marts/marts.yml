@@ -7,6 +7,37 @@ models:
         data_tests: [not_null, unique]
       - name: cpi_avg
         data_tests: [not_null]
+  - name: fct_income_district
+    columns:
+      - name: district_code
+        data_test: [not_null]
+      - name: value
+        data_tests:
+          - not_null:
+              config:
+                where: "indicator = 'Average household net income'"
+  - name: fct_rent_serpavi
+    columns: 
+      - name: rent_eur_month_median
+        data_tests: [not_null]
+  - name: fct_rent_index
+    columns:
+      - name: rent_index
+        data_tests: [not_null]
+  - name: mart_district_affordability
+    columns:
+      - name: district_code
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_district')
+                field: district_code
+      - name: rent_to_income_ratio
+        data_tests: [not_null]
+      - name: rent_index_real
+        data_tests: [not_null]
+
 
 seeds:
   - name: dim_district

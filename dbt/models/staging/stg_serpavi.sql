@@ -13,5 +13,5 @@ select
 	end as statistic,
 	housing_type,
 	year,
-	value
+	value::numeric as value
 from {{ source('raw', 'serpavi_long') }}
