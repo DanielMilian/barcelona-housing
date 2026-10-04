@@ -1,0 +1,6 @@
+.venv
+data
+logs
+dbt/target
+dbt/logs
+.git
