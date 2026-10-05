@@ -38,6 +38,7 @@ INSERT INTO raw.ine_raw (source_label, table_id, extract_date, payload)
 VALUES (%s, %s, %s, %s)
 ON CONFLICT (source_label, extract_date)
 DO UPDATE SET table_id = EXCLUDED.table_id, payload = EXCLUDED.payload, loaded_at = now()
+WHERE raw.ine_raw.payload IS DISTINCT FROM EXCLUDED.payload
 """
 COPY_SERPAVI = """
 COPY raw.serpavi_long (district_code, metric, statistic, housing_type, year, value)
