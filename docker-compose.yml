@@ -17,6 +17,8 @@ x-airflow-common: &airflow-common
     - ./dbt:/opt/airflow/dbt
     - ./data:/opt/airflow/data
     - ./logs:/opt/airflow/logs
+    - ./export:/opt/airflow/export
+    - ./app:/opt/airflow/app
   depends_on:
     airflow-db:
       condition: service_healthy
@@ -83,3 +85,4 @@ services:
 volumes:
   warehouse-data:
   airflow-db-data:
+
