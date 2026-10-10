@@ -7,9 +7,10 @@ from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
 
 DBT = "/home/airflow/dbt_venv/bin/dbt"
+DBT_PROJ = "--project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt"
 # target/log paths go to /tmp so dbt doesn't write into the mounted repo
 DBT_ARGS = (
-        "--project-dir /opt/airflow/dbt --profiles-dir /opt/airflow/dbt "
+        f"{DBT_PROJ} "
         "--target-path /tmp/dbt_target --log-path /tmp/dbt_logs"
         )
 
@@ -41,6 +42,13 @@ def housing_pipeline():
 
         main()
 
+    @task
+    def export_mart():
+        from export.export_mart import main
+
+        main()
+
+    dbt_deps = BashOperator(task_id="dbt_deps", bash_command=f"{DBT} deps {DBT_PROJ}")
     dbt_build = BashOperator(task_id="dbt_build", bash_command=f"{DBT} build {DBT_ARGS}")
 
     [extract_ine(), extract_serpavi()] >> load_raw() >> dbt_build >> export_mart()

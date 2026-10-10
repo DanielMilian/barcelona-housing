@@ -4,7 +4,7 @@ from pathlib import Path
 from load.load_raw import connect
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "app" / "mart_district_affordability.csv"
+OUT = ROOT / "export" / "mart_district_affordability.csv"
 EXPECTED_ROWS = 90
 
 COPY_SQL = """

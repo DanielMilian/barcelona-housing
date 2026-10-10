@@ -8,14 +8,19 @@ models:
       - name: cpi_avg
         data_tests: [not_null]
   - name: fct_income_district
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [district_code, year]
     columns:
       - name: district_code
-        data_test: [not_null]
-      - name: value
-        data_tests:
-          - not_null:
-              config:
-                where: "indicator = 'Average household net income'"
+        data_tests: [not_null]
+      - name: income_eur
+        data_tests: [not_null]
+      - name: income_cu_mean_eur
+        data_tests: [not_null]
+      - name: income_cu_median_eur
+        data_tests: [not_null]
   - name: fct_rent_serpavi
     columns: 
       - name: rent_eur_month_median
@@ -25,6 +30,10 @@ models:
       - name: rent_index
         data_tests: [not_null]
   - name: mart_district_affordability
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [district_code, year]
     columns:
       - name: district_code
         data_tests:
@@ -36,6 +45,20 @@ models:
       - name: rent_to_income_ratio
         data_tests: [not_null]
       - name: rent_index_real
+        data_tests: [not_null]
+      - name: income_median_to_mean
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0.5
+                max_value: 1
+                inclusive: false
+              config:
+                severity: warn
+      - name: income_median_adj_eur_est
+        data_tests: [not_null]
+      - name: rent_to_income_ratio_median_adj_est
         data_tests: [not_null]
 
 
