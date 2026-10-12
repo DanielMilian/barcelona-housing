@@ -5,7 +5,7 @@ x-airflow-common: &airflow-common
   user: "${AIRFLOW_UID:-50000}:0"
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-db/${AIRFLOW_DB_NAME}
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     PYTHONPATH: /opt/airflow
     WAREHOUSE_HOST: warehouse
@@ -43,17 +43,27 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${WAREHOUSE_USER} -d ${WAREHOUSE_DB}"]
       interval: 5s
       retries: 10
+  
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${WAREHOUSE_USER}:${WAREHOUSE_PASSWORD}@warehouse:5432/${WAREHOUSE_DB}
+    ports:
+      - "8001:8000"
+    depends_on:
+      warehouse:
+        condition: service_healthy
 
   airflow-db:
     image: postgres:16
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME}
     volumes:
       - airflow-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_DB_USER} -d ${AIRFLOW_DB_NAME}"]
       interval: 5s
       retries: 10
 
