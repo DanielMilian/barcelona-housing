@@ -96,6 +96,30 @@ def affordability_by_year(
             ).mappings().all()
     return [dict(r) for r in rows]
 
+@app.get("/health")
+def health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("select 1"))
+    except Exception:
+        raise HTTPException(status_code=503, detail="database unavailable")
+    return {"status": "ok"}
+
+FRESHNESS_TABLES = (
+        "fct_cpi_annual",
+        "fct_income_district",
+        "fct_rent_index",
+        "fct_rent_serpavi",
+        "mart_district_affordability",
+        )
 
 
-
+@app.get("/meta/freshness")
+def freshness(db: Session = Depends(get_db)):
+    out = {}
+    for t in FRESHNESS_TABLES:
+        row = db.execute(text(
+                          f"select min(year) as min_year, max(year) as max_year, count(*) as row_count "
+                          f"from analytics.{t}"
+        )).one()
+        out[t] = {"min_year": row.min_year, "max_year": row.max_year, "row_count": row.row_count}
+    return out
