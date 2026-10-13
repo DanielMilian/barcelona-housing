@@ -123,3 +123,32 @@ def freshness(db: Session = Depends(get_db)):
         )).one()
         out[t] = {"min_year": row.min_year, "max_year": row.max_year, "row_count": row.row_count}
     return out
+
+AIRFLOW_URL = os.environ.get("AIRFLOW_API_URL", "http://airflow-webserver:8080")
+AIRFLOW_AUTH = (os.environ.get("AIRFLOW_API_USER", ""), os.environ.get("AIRFLOW_API_PASSWORD", ""))
+DAG_ID = "housing_pipeline"
+
+@app.get("/pipeline/runs")
+def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
+    try:
+        r = httpx.get(
+            f"{AIRFLOW_URL}/api/v1/dags/{DAG_ID}/dagRuns",
+            params={"limit": limit, "order_by": "-execution_date"},
+            auth=AIRFLOW_AUTH,
+            timeout=5.0,
+        )
+        r.raise_for_status()
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="airflow unavailable")
+    return [
+        {
+            "run_id": d["dag_run_id"],
+            "state": d["state"],
+            "run_type": d["run_type"],
+            "start_date": d["start_date"],
+            "end_date": d["end_date"],
+        }
+        for d in r.json()["dag_runs"]
+    ]
+
+
