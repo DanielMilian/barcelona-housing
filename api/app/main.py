@@ -1,3 +1,6 @@
+import logging
+import os
+import httpx
 from enum import Enum
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlalchemy import text
@@ -5,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from .db import get_db
 from .schemas import District, Affordability
+
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="Barcelona housing API")
 
@@ -138,7 +143,8 @@ def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
             timeout=5.0,
         )
         r.raise_for_status()
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        logger.warning("airflow call failed: %s", e)
         raise HTTPException(status_code=502, detail="airflow unavailable")
     return [
         {
