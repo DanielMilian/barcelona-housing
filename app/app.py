@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import httpx
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
@@ -10,23 +11,23 @@ import plotly.express as px
 
 load_dotenv()
 
+API_URL = os.environ.get("API_URL", "http://localhost:8001")
 CSV = Path(__file__).resolve().parent.parent / "export" / "mart_district_affordability.csv"
 TEXT_COLS = ["district_code", "district_name"]
 
 @st.cache_data
 def load_mart() -> tuple[pd.DataFrame, str]:
     try:
-        url = (
-            f"postgresql+psycopg2://{os.environ['WAREHOUSE_USER']}:{os.environ['WAREHOUSE_PASSWORD']}"
-            f"@localhost:{os.environ['WAREHOUSE_PORT']}/{os.environ['WAREHOUSE_DB']}"
-            )
-        df = pd.read_sql("select * from analytics.mart_district_affordability", create_engine(url))
-        num_cols = df.select_dtypes("object").columns.difference(TEXT_COLS)
-        df[num_cols] = df[num_cols].astype(float)
+        with httpx.Client(base_url=API_URL, timeout=10.0) as c:
+            m = c.get("/meta/freshness").raise_for_status().json()["tables"]["mart_district_affordability"]
+            rows = []
+            for y in range(m["min_year"], m["max_year"] + 1):
+                rows += c.get("/affordability", params={"year": y}).raise_for_status().json()
+        df = pd.DataFrame(rows) 
         CSV.parent.mkdir(exist_ok=True)
         df.to_csv(CSV, index=False)
-        return df, "live Postgres warehouse"
-    except Exception:
+        return df, "live API"
+    except httpx.HTTPError:
         return pd.read_csv(CSV, dtype={"district_code": str}), "exported CSV snapshot"
 
 df, source = load_mart()
