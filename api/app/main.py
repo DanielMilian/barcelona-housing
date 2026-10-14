@@ -127,34 +127,49 @@ def freshness(db: Session = Depends(get_db)):
                           f"from analytics.{t}"
         )).one()
         out[t] = {"min_year": row.min_year, "max_year": row.max_year, "row_count": row.row_count}
-    return out
+    runs = fetch_dag_runs(1, state="success")
+    return {
+            "tables": out,
+            "pipeline": {
+                "airflow_reachable": runs is not None,
+                "last_successful_run": runs[0] if runs else None,
+                }
+            }
+
 
 AIRFLOW_URL = os.environ.get("AIRFLOW_API_URL", "http://airflow-webserver:8080")
 AIRFLOW_AUTH = (os.environ.get("AIRFLOW_API_USER", ""), os.environ.get("AIRFLOW_API_PASSWORD", ""))
 DAG_ID = "housing_pipeline"
 
-@app.get("/pipeline/runs")
-def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
+
+
+def fetch_dag_runs(limit: int, state:str | None = None) -> list[dict] | None:
+    params = {"limit": limit, "order_by": "-execution_date"}
+    if state:
+        params["state"] = state
     try:
         r = httpx.get(
-            f"{AIRFLOW_URL}/api/v1/dags/{DAG_ID}/dagRuns",
-            params={"limit": limit, "order_by": "-execution_date"},
-            auth=AIRFLOW_AUTH,
-            timeout=5.0,
-        )
+                f"{AIRFLOW_URL}/api/v1/dags/{DAG_ID}/dagRuns",
+                params=params, auth=AIRFLOW_AUTH, timeout=5.0,
+                )
         r.raise_for_status()
     except httpx.HTTPError as e:
         logger.warning("airflow call failed: %s", e)
-        raise HTTPException(status_code=502, detail="airflow unavailable")
+        return None
     return [
-        {
-            "run_id": d["dag_run_id"],
-            "state": d["state"],
-            "run_type": d["run_type"],
-            "start_date": d["start_date"],
-            "end_date": d["end_date"],
-        }
-        for d in r.json()["dag_runs"]
-    ]
+            {
+                "run_id": d["dag_run_id"],
+                "state": d["state"],
+                "run_type": d["run_type"],
+                "start_date": d["start_date"],
+                "end_date": d["end_date"],
+                }
+            for d in r.json()["dag_runs"]
+            ]
 
-
+@app.get("/pipeline/runs")
+def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
+    runs = fetch_dag_runs(limit)
+    if runs is None:
+        raise HTTPException(status_code=502, detail="airflow unavailable")
+    return runs
