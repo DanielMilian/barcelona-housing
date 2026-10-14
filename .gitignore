@@ -6,4 +6,4 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 logs/
-
+.pytests_cache/
