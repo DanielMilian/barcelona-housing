@@ -23,7 +23,7 @@ def load_mart() -> tuple[pd.DataFrame, str]:
             rows = []
             for y in range(m["min_year"], m["max_year"] + 1):
                 rows += c.get("/affordability", params={"year": y}).raise_for_status().json()
-        df = pd.DataFrame(rows) 
+        df = pd.DataFrame(rows).sort_values(["district_code", "year"]).reset_index(drop=True)
         CSV.parent.mkdir(exist_ok=True)
         df.to_csv(CSV, index=False)
         return df, "live API"
