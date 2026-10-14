@@ -30,6 +30,17 @@ def load_mart() -> tuple[pd.DataFrame, str]:
     except httpx.HTTPError:
         return pd.read_csv(CSV, dtype={"district_code": str}), "exported CSV snapshot"
 
+
+@st.cache_data(ttl=30)
+def load_status():
+    try:
+        with httpx.Client(base_url=API_URL, timeout=10.0) as c:
+            fresh = c.get("/meta/freshness").raise_for_status().json()
+            runs = c.get("/pipeline/runs", params={"limit": 5}).raise_for_status().json()
+        return fresh, runs
+    except httpx.HTTPError:
+        return None, None
+
 df, source = load_mart()
 
 MEDIAN_COLS = {"income_median_to_mean", "income_median_adj_eur_est", "rent_to_income_ratio_median_adj_est"}
@@ -68,7 +79,7 @@ fig = px.imshow(
         )
 
 fig.update_xaxes(type="category", side="top")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 if HAS_MEDIAN:
     with st.expander("Median / mean income factor (per consumption unit)"):
@@ -76,7 +87,7 @@ if HAS_MEDIAN:
         fig_m = px.bar(m, x="income_median_to_mean", y="district_name", orientation="h",
                        labels=dict(income_median_to_mean="Median / mean", district_name="District"))
         fig_m.update_xaxes(range=[0.6, 1])
-        st.plotly_chart(fig_m, use_container_width=True)
+        st.plotly_chart(fig_m, width='stretch')
         st.caption(f"{year}. Below 1 = the typical resident earns less than the average. "
                    "Estimate: per consumption unit, all residents (not renters), applied to household income.")
 
@@ -121,8 +132,25 @@ fig2 = px.line(
 )
 fig2.update_xaxes(dtick=1)
 fig2.add_hline(y=100, line_width=1, line_color="grey")
-st.plotly_chart(fig2, use_container_width=True)
+st.plotly_chart(fig2, width='stretch')
 st.caption("Solid = nominal, dotted = real (deflated with INE CPI). Index 2015 = 100. Index charts use mean income regardless of the basis toggle.")
+
+fresh, runs = load_status()
+with st.expander("Pipeline status"):
+    if fresh is None:
+        st.caption("API unavailable: pipeline status not shown.")
+    else:
+        mart = fresh["tables"]["mart_district_affordability"]
+        st.caption(f"Mart: {mart['row_count']} rows, {mart['min_year']}-{mart['max_year']}")
+    if not fresh["pipeline"]["airflow_reachable"]:
+        st.warning("Airflow unreachable: run history unavailable.")
+    elif runs:
+        if runs[0]["state"] != "success":
+            st.warning(f"Latest run state: {runs[0]['state']}")
+        last = fresh["pipeline"]["last_successful_run"]
+        if last:
+            st.metric("Last successful run (UTC)", (last["end_date"] or "")[:16].replace("T", " "))
+        st.dataframe(pd.DataFrame(runs))
 
 with st.expander("Raw data"):
     st.dataframe(df)
