@@ -42,7 +42,7 @@ select
 	w.year,
 	w.income_eur,
 	round(w.rent_eur_month, 2)							as rent_eur_month,
-	w.rent_eur_m2_median,
+	round(w.rent_eur_m2_median, 2)							as rent_eur_m2_median,
 	w.lease_count,
 	round(w.rent_eur_month * 12 / w.income_eur, 4)					as rent_to_income_ratio,
 	round(w.median_to_mean, 4)							as income_median_to_mean,
