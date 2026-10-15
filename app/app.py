@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import httpx
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
@@ -10,24 +11,38 @@ import plotly.express as px
 
 load_dotenv()
 
+API_URL = os.environ.get("API_URL", "http://localhost:8001")
 CSV = Path(__file__).resolve().parent.parent / "export" / "mart_district_affordability.csv"
 TEXT_COLS = ["district_code", "district_name"]
 
-@st.cache_data
+@st.cache_data(ttl=60)
 def load_mart() -> tuple[pd.DataFrame, str]:
     try:
-        url = (
-            f"postgresql+psycopg2://{os.environ['WAREHOUSE_USER']}:{os.environ['WAREHOUSE_PASSWORD']}"
-            f"@localhost:{os.environ['WAREHOUSE_PORT']}/{os.environ['WAREHOUSE_DB']}"
-            )
-        df = pd.read_sql("select * from analytics.mart_district_affordability", create_engine(url))
-        num_cols = df.select_dtypes("object").columns.difference(TEXT_COLS)
-        df[num_cols] = df[num_cols].astype(float)
-        CSV.parent.mkdir(exist_ok=True)
-        df.to_csv(CSV, index=False)
-        return df, "live Postgres warehouse"
-    except Exception:
+        with httpx.Client(base_url=API_URL, timeout=10.0) as c:
+            m = c.get("/meta/freshness").raise_for_status().json()["tables"]["mart_district_affordability"]
+            rows = []
+            for y in range(m["min_year"], m["max_year"] + 1):
+                rows += c.get("/affordability", params={"year": y}).raise_for_status().json()
+        df = pd.DataFrame(rows).sort_values(["district_code", "year"]).reset_index(drop=True)
+        try:
+            CSV.parent.mkdir(exist_ok=True)
+            df.to_csv(CSV, index=False)
+        except OSError:
+            pass
+        return df, "live API"
+    except httpx.HTTPError:
         return pd.read_csv(CSV, dtype={"district_code": str}), "exported CSV snapshot"
+
+
+@st.cache_data(ttl=30)
+def load_status():
+    try:
+        with httpx.Client(base_url=API_URL, timeout=10.0) as c:
+            fresh = c.get("/meta/freshness").raise_for_status().json()
+            runs = c.get("/pipeline/runs", params={"limit": 5}).raise_for_status().json()
+        return fresh, runs
+    except httpx.HTTPError:
+        return None, None
 
 df, source = load_mart()
 
@@ -67,7 +82,7 @@ fig = px.imshow(
         )
 
 fig.update_xaxes(type="category", side="top")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 if HAS_MEDIAN:
     with st.expander("Median / mean income factor (per consumption unit)"):
@@ -75,7 +90,7 @@ if HAS_MEDIAN:
         fig_m = px.bar(m, x="income_median_to_mean", y="district_name", orientation="h",
                        labels=dict(income_median_to_mean="Median / mean", district_name="District"))
         fig_m.update_xaxes(range=[0.6, 1])
-        st.plotly_chart(fig_m, use_container_width=True)
+        st.plotly_chart(fig_m, width='stretch')
         st.caption(f"{year}. Below 1 = the typical resident earns less than the average. "
                    "Estimate: per consumption unit, all residents (not renters), applied to household income.")
 
@@ -120,8 +135,25 @@ fig2 = px.line(
 )
 fig2.update_xaxes(dtick=1)
 fig2.add_hline(y=100, line_width=1, line_color="grey")
-st.plotly_chart(fig2, use_container_width=True)
+st.plotly_chart(fig2, width='stretch')
 st.caption("Solid = nominal, dotted = real (deflated with INE CPI). Index 2015 = 100. Index charts use mean income regardless of the basis toggle.")
+
+fresh, runs = load_status()
+with st.expander("Pipeline status"):
+    if fresh is None:
+        st.caption("API unavailable: pipeline status not shown.")
+    else:
+        mart = fresh["tables"]["mart_district_affordability"]
+        st.caption(f"Mart: {mart['row_count']} rows, {mart['min_year']}-{mart['max_year']}")
+        if not fresh["pipeline"]["airflow_reachable"]:
+            st.warning("Airflow unreachable: run history unavailable.")
+        elif runs:
+            if runs[0]["state"] != "success":
+                st.warning(f"Latest run state: {runs[0]['state']}")
+            last = fresh["pipeline"]["last_successful_run"]
+            if last:
+                st.metric("Last successful run (UTC)", (last["end_date"] or "")[:16].replace("T", " "))
+            st.dataframe(pd.DataFrame(runs))
 
 with st.expander("Raw data"):
     st.dataframe(df)
