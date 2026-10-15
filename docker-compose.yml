@@ -44,7 +44,19 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${WAREHOUSE_USER} -d ${WAREHOUSE_DB}"]
       interval: 5s
       retries: 10
-  
+
+  dashboard:
+    build: ./app
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      API_URL: http://api:8000
+    volumes:
+      - ./export:/export:ro
+    restart: unless-stopped
+
+
+
   api:
     build: ./api
     environment:
