@@ -15,7 +15,7 @@ API_URL = os.environ.get("API_URL", "http://localhost:8001")
 CSV = Path(__file__).resolve().parent.parent / "export" / "mart_district_affordability.csv"
 TEXT_COLS = ["district_code", "district_name"]
 
-@st.cache_data
+@st.cache_data(ttl=60)
 def load_mart() -> tuple[pd.DataFrame, str]:
     try:
         with httpx.Client(base_url=API_URL, timeout=10.0) as c:
@@ -145,15 +145,15 @@ with st.expander("Pipeline status"):
     else:
         mart = fresh["tables"]["mart_district_affordability"]
         st.caption(f"Mart: {mart['row_count']} rows, {mart['min_year']}-{mart['max_year']}")
-    if not fresh["pipeline"]["airflow_reachable"]:
-        st.warning("Airflow unreachable: run history unavailable.")
-    elif runs:
-        if runs[0]["state"] != "success":
-            st.warning(f"Latest run state: {runs[0]['state']}")
-        last = fresh["pipeline"]["last_successful_run"]
-        if last:
-            st.metric("Last successful run (UTC)", (last["end_date"] or "")[:16].replace("T", " "))
-        st.dataframe(pd.DataFrame(runs))
+        if not fresh["pipeline"]["airflow_reachable"]:
+            st.warning("Airflow unreachable: run history unavailable.")
+        elif runs:
+            if runs[0]["state"] != "success":
+                st.warning(f"Latest run state: {runs[0]['state']}")
+            last = fresh["pipeline"]["last_successful_run"]
+            if last:
+                st.metric("Last successful run (UTC)", (last["end_date"] or "")[:16].replace("T", " "))
+            st.dataframe(pd.DataFrame(runs))
 
 with st.expander("Raw data"):
     st.dataframe(df)
