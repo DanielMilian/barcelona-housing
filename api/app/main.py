@@ -127,7 +127,7 @@ def freshness(db: Session = Depends(get_db)):
                           f"from analytics.{t}"
         )).one()
         out[t] = {"min_year": row.min_year, "max_year": row.max_year, "row_count": row.row_count}
-    runs = fetch_dag_runs(1, state="success")
+    runs = fetch_dag_runs(1, state="success", timeout=2.0)
     return {
             "tables": out,
             "pipeline": {
@@ -143,14 +143,14 @@ DAG_ID = "housing_pipeline"
 
 
 
-def fetch_dag_runs(limit: int, state:str | None = None) -> list[dict] | None:
+def fetch_dag_runs(limit: int, state:str | None = None, timeout: float = 5.0) -> list[dict] | None:
     params = {"limit": limit, "order_by": "-execution_date"}
     if state:
         params["state"] = state
     try:
         r = httpx.get(
                 f"{AIRFLOW_URL}/api/v1/dags/{DAG_ID}/dagRuns",
-                params=params, auth=AIRFLOW_AUTH, timeout=5.0,
+                params=params, auth=AIRFLOW_AUTH, timeout=timeout,
                 )
         r.raise_for_status()
     except httpx.HTTPError as e:
