@@ -2,17 +2,24 @@ import logging
 import os
 import httpx
 from enum import Enum
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .db import get_db
 from .schemas import District, Affordability, Freshness, DagRun
 from .auth import require_api_key
+from .limits import limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="Barcelona housing API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 MIN_YEAR, MAX_YEAR = 2015, 2023
 AUTH = [Depends(require_api_key)]
@@ -107,6 +114,7 @@ def affordability_by_year(
     return [dict(r) for r in rows]
 
 @app.get("/health")
+@limiter.exempt
 def health(db: Session = Depends(get_db)):
     try:
         db.execute(text("select 1"))
@@ -173,7 +181,8 @@ def fetch_dag_runs(limit: int, state:str | None = None, timeout: float = 5.0) ->
             ]
 
 @app.get("/pipeline/runs", response_model=list[DagRun], dependencies=AUTH)
-def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
+@limiter.limit("10/minute")
+def pipeline_runs(request: Request, limit: int = Query(5, ge=1, le=50)):
     runs = fetch_dag_runs(limit)
     if runs is None:
         raise HTTPException(status_code=502, detail="airflow unavailable")

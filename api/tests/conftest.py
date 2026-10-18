@@ -14,6 +14,9 @@ os.environ["API_KEY"] = "test-key"
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.limits import limiter
+
+limiter.enabled = False
 
 
 @pytest.fixture(scope="session")
