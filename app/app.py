@@ -9,6 +9,8 @@ import plotly.express as px
 
 
 load_dotenv()
+API_KEY = os.getenv("API_KEY", "")
+HEADERS = {"X-API-Key": API_KEY}
 
 API_URL = os.environ.get("API_URL", "http://localhost:8001")
 CSV = Path(__file__).resolve().parent.parent / "export" / "mart_district_affordability.csv"
@@ -17,7 +19,7 @@ TEXT_COLS = ["district_code", "district_name"]
 @st.cache_data(ttl=60)
 def load_mart() -> tuple[pd.DataFrame, str]:
     try:
-        with httpx.Client(base_url=API_URL, timeout=10.0) as c:
+        with httpx.Client(base_url=API_URL, timeout=10.0, headers=HEADERS) as c:
             m = c.get("/meta/freshness").raise_for_status().json()["tables"]["mart_district_affordability"]
             rows = []
             for y in range(m["min_year"], m["max_year"] + 1):
@@ -25,14 +27,18 @@ def load_mart() -> tuple[pd.DataFrame, str]:
         df = pd.DataFrame(rows).sort_values(["district_code", "year"]).reset_index(drop=True)
 
         return df, "live API"
-    except httpx.HTTPError:
-        return pd.read_csv(CSV, dtype={"district_code": str}), "exported CSV snapshot"
+    except httpx.HTTPError as e:
+        label = "exported CSV snapshot (API key rejected)" if e.response.status_code in (401, 403) else "exported CSV snapshot"
+        return pd.read_csv(CSV, dtype={"district_code": str}), label
+    except https.HTTPError:
+        return pd.read_csv(CSV, dtype={"district_code": str}), "exported CSV snapshot" 
+
 
 
 @st.cache_data(ttl=30)
 def load_status():
     try:
-        with httpx.Client(base_url=API_URL, timeout=10.0) as c:
+        with httpx.Client(base_url=API_URL, timeout=10.0, headers=HEADERS) as c:
             fresh = c.get("/meta/freshness").raise_for_status().json()
             runs = c.get("/pipeline/runs", params={"limit": 5}).raise_for_status().json()
         return fresh, runs
