@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.limits import limiter
+from app.cache import cache
 
 limiter.enabled = False
 
@@ -22,3 +23,9 @@ limiter.enabled = False
 @pytest.fixture(scope="session")
 def client():
     return TestClient(app, headers={"X-API-Key": "test-key"})
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    cache.clear()
+    yield
