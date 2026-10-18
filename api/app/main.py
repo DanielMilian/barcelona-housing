@@ -13,6 +13,9 @@ logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="Barcelona housing API")
 
+MIN_YEAR, MAX_YEAR = 2015, 2023
+
+
 @app.get("/districts", response_model=list[District])
 def list_district(db: Session = Depends(get_db)):
     rows = db.execute(
@@ -56,8 +59,8 @@ class Order(str, Enum):
 @app.get("/districts/{district_number}/affordability", response_model=list[Affordability])
 def district_affordability(
         district_number: int,
-        year_from: int = Query(2015, ge=2015, le=2023),
-        year_to: int = Query(2023, ge=2015, le=2023),
+        year_from: int = Query(MIN_YEAR, ge=MIN_YEAR, le=MAX_YEAR),
+        year_to: int = Query(MAX_YEAR, ge=MIN_YEAR, le=MAX_YEAR),
         db: Session = Depends(get_db),
         ):
     if year_from > year_to:
@@ -85,7 +88,7 @@ def district_affordability(
 
 @app.get("/affordability", response_model=list[Affordability])
 def affordability_by_year(
-        year: int = Query(..., ge=2015, le=2023),
+        year: int = Query(..., ge=MIN_YEAR, le=MAX_YEAR),
         sort_by: SortBy = SortBy.rent_to_income_ratio,
         order: Order = Order.desc,
         db: Session = Depends(get_db),
