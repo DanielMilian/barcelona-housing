@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .db import get_db
-from .schemas import District, Affordability
+from .schemas import District, Affordability, Freshness, DagRun
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -118,7 +118,7 @@ FRESHNESS_TABLES = (
         )
 
 
-@app.get("/meta/freshness")
+@app.get("/meta/freshness", response_model=Freshness)
 def freshness(db: Session = Depends(get_db)):
     out = {}
     for t in FRESHNESS_TABLES:
@@ -167,7 +167,7 @@ def fetch_dag_runs(limit: int, state:str | None = None, timeout: float = 5.0) ->
             for d in r.json()["dag_runs"]
             ]
 
-@app.get("/pipeline/runs")
+@app.get("/pipeline/runs", response_model=list[DagRun])
 def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
     runs = fetch_dag_runs(limit)
     if runs is None:
