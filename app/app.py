@@ -27,10 +27,12 @@ def load_mart() -> tuple[pd.DataFrame, str]:
         df = pd.DataFrame(rows).sort_values(["district_code", "year"]).reset_index(drop=True)
 
         return df, "live API"
-    except httpx.HTTPError as e:
-        label = "exported CSV snapshot (API key rejected)" if e.response.status_code in (401, 403) else "exported CSV snapshot"
+    except httpx.HTTPStatusError as e:
+        reasons = {401: "API key rejected", 403:"API key rejected", 429:"API rate limited"}
+        reason = reasons.get(e.response.status_code)
+        label = f"exported CSV snapshot ({reason})" if reason else "exported CSV snapshot"
         return pd.read_csv(CSV, dtype={"district_code": str}), label
-    except https.HTTPError:
+    except httpx.HTTPError:
         return pd.read_csv(CSV, dtype={"district_code": str}), "exported CSV snapshot" 
 
 
