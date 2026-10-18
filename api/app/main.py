@@ -8,15 +8,17 @@ from sqlalchemy.orm import Session
 
 from .db import get_db
 from .schemas import District, Affordability, Freshness, DagRun
+from .auth import require_api_key
 
 logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="Barcelona housing API")
 
 MIN_YEAR, MAX_YEAR = 2015, 2023
+AUTH = [Depends(require_api_key)]
 
 
-@app.get("/districts", response_model=list[District])
+@app.get("/districts", response_model=list[District], dependencies=AUTH)
 def list_district(db: Session = Depends(get_db)):
     rows = db.execute(
             text("""SELECT district_code, district_number, district_name 
@@ -25,7 +27,7 @@ def list_district(db: Session = Depends(get_db)):
             ).mappings().all()
     return [dict(r) for r in rows]
 
-@app.get("/districts/{district_number}", response_model=District)
+@app.get("/districts/{district_number}", response_model=District, dependencies=AUTH)
 def get_district(district_number: int, db: Session = Depends(get_db)):
     row = db.execute(
             text(
@@ -56,7 +58,7 @@ class Order(str, Enum):
     asc = "asc"
     desc = "desc"
 
-@app.get("/districts/{district_number}/affordability", response_model=list[Affordability])
+@app.get("/districts/{district_number}/affordability", response_model=list[Affordability], dependencies=AUTH)
 def district_affordability(
         district_number: int,
         year_from: int = Query(MIN_YEAR, ge=MIN_YEAR, le=MAX_YEAR),
@@ -86,7 +88,7 @@ def district_affordability(
             ).mappings().all()
     return [dict(r) for r in rows]
 
-@app.get("/affordability", response_model=list[Affordability])
+@app.get("/affordability", response_model=list[Affordability], dependencies=AUTH)
 def affordability_by_year(
         year: int = Query(..., ge=MIN_YEAR, le=MAX_YEAR),
         sort_by: SortBy = SortBy.rent_to_income_ratio,
@@ -121,7 +123,7 @@ FRESHNESS_TABLES = (
         )
 
 
-@app.get("/meta/freshness", response_model=Freshness)
+@app.get("/meta/freshness", response_model=Freshness, dependencies=AUTH)
 def freshness(db: Session = Depends(get_db)):
     out = {}
     for t in FRESHNESS_TABLES:
@@ -170,7 +172,7 @@ def fetch_dag_runs(limit: int, state:str | None = None, timeout: float = 5.0) ->
             for d in r.json()["dag_runs"]
             ]
 
-@app.get("/pipeline/runs", response_model=list[DagRun])
+@app.get("/pipeline/runs", response_model=list[DagRun], dependencies=AUTH)
 def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
     runs = fetch_dag_runs(limit)
     if runs is None:

@@ -50,6 +50,7 @@ services:
     ports:
       - "127.0.0.1:8501:8501"
     environment:
+      API_KEY: ${API_KEY}
       API_URL: http://api:8000
     volumes:
       - ./export:/export:ro
@@ -60,6 +61,7 @@ services:
   api:
     build: ./api
     environment:
+      API_KEY: ${API_KEY}
       DATABASE_URL: postgresql+psycopg2://${WAREHOUSE_USER}:${WAREHOUSE_PASSWORD}@warehouse:5432/${WAREHOUSE_DB}
       AIRFLOW_API_URL: http://airflow-webserver:8080
       AIRFLOW_API_USER: ${AIRFLOW_API_USER}
