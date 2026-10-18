@@ -5,7 +5,6 @@ import httpx
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
 import plotly.express as px
 
 
