@@ -37,3 +37,15 @@ def test_freshness_airflow_down(client):
     r = client.get("/meta/freshness")
     assert r.status_code == 200
     assert r.json()["pipeline"] == {"airflow_reachable": False, "last_successful_run": None}
+
+
+def test_freshness_uses_short_airflow_timeout(client, monkeypatch):
+    seen = {}
+
+    def fake(*a, **k):
+        seen.update(k)
+        return None
+
+    monkeypatch.setattr(main, "fetch_dag_runs", fake)
+    client.get("/meta/freshness")
+    assert seen["timeout"] == 2.0

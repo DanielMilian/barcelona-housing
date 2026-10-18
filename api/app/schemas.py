@@ -25,3 +25,23 @@ class Affordability(BaseModel):
     income_index_real: float | None
     rent_index_real: float | None
     ine_rent_index_real: float | None
+
+class TableFreshness(BaseModel):
+    min_year: int | None
+    max_year: int | None
+    row_count: int
+
+class DagRun(BaseModel):
+    run_id: str
+    state: str
+    run_type: str
+    start_date: str | None
+    end_date: str | None
+
+class PipelineStatus(BaseModel):
+    airflow_reachable: bool
+    last_successful_run: DagRun | None
+
+class Freshness(BaseModel):
+    tables: dict[str, TableFreshness]
+    pipeline: PipelineStatus

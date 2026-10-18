@@ -7,11 +7,14 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .db import get_db
-from .schemas import District, Affordability
+from .schemas import District, Affordability, Freshness, DagRun
 
 logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="Barcelona housing API")
+
+MIN_YEAR, MAX_YEAR = 2015, 2023
+
 
 @app.get("/districts", response_model=list[District])
 def list_district(db: Session = Depends(get_db)):
@@ -56,8 +59,8 @@ class Order(str, Enum):
 @app.get("/districts/{district_number}/affordability", response_model=list[Affordability])
 def district_affordability(
         district_number: int,
-        year_from: int = Query(2015, ge=2015, le=2023),
-        year_to: int = Query(2023, ge=2015, le=2023),
+        year_from: int = Query(MIN_YEAR, ge=MIN_YEAR, le=MAX_YEAR),
+        year_to: int = Query(MAX_YEAR, ge=MIN_YEAR, le=MAX_YEAR),
         db: Session = Depends(get_db),
         ):
     if year_from > year_to:
@@ -85,7 +88,7 @@ def district_affordability(
 
 @app.get("/affordability", response_model=list[Affordability])
 def affordability_by_year(
-        year: int = Query(..., ge=2015, le=2023),
+        year: int = Query(..., ge=MIN_YEAR, le=MAX_YEAR),
         sort_by: SortBy = SortBy.rent_to_income_ratio,
         order: Order = Order.desc,
         db: Session = Depends(get_db),
@@ -118,7 +121,7 @@ FRESHNESS_TABLES = (
         )
 
 
-@app.get("/meta/freshness")
+@app.get("/meta/freshness", response_model=Freshness)
 def freshness(db: Session = Depends(get_db)):
     out = {}
     for t in FRESHNESS_TABLES:
@@ -127,7 +130,7 @@ def freshness(db: Session = Depends(get_db)):
                           f"from analytics.{t}"
         )).one()
         out[t] = {"min_year": row.min_year, "max_year": row.max_year, "row_count": row.row_count}
-    runs = fetch_dag_runs(1, state="success")
+    runs = fetch_dag_runs(1, state="success", timeout=2.0)
     return {
             "tables": out,
             "pipeline": {
@@ -143,14 +146,14 @@ DAG_ID = "housing_pipeline"
 
 
 
-def fetch_dag_runs(limit: int, state:str | None = None) -> list[dict] | None:
+def fetch_dag_runs(limit: int, state:str | None = None, timeout: float = 5.0) -> list[dict] | None:
     params = {"limit": limit, "order_by": "-execution_date"}
     if state:
         params["state"] = state
     try:
         r = httpx.get(
                 f"{AIRFLOW_URL}/api/v1/dags/{DAG_ID}/dagRuns",
-                params=params, auth=AIRFLOW_AUTH, timeout=5.0,
+                params=params, auth=AIRFLOW_AUTH, timeout=timeout,
                 )
         r.raise_for_status()
     except httpx.HTTPError as e:
@@ -167,7 +170,7 @@ def fetch_dag_runs(limit: int, state:str | None = None) -> list[dict] | None:
             for d in r.json()["dag_runs"]
             ]
 
-@app.get("/pipeline/runs")
+@app.get("/pipeline/runs", response_model=list[DagRun])
 def pipeline_runs(limit: int = Query(5, ge=1, le=50)):
     runs = fetch_dag_runs(limit)
     if runs is None:
