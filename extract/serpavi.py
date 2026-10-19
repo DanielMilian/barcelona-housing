@@ -17,6 +17,11 @@ EXPECTED_COLUMNS = 280
 EXPECTED_ROWS = 2800
 
 def main() -> None:
+    if not SRC.exists():
+        raise FileNotFoundError(
+            f"SERPAVI Excel not found at {SRC.relative_to(ROOT)}. "
+            "Download it manually (see README, 'Download the SERPAVI data') and place it there."
+        )
     df = pd.read_excel(
             SRC, sheet_name="Distritos", dtype={"CPRO": str, "CUMUN": str, "CUDIS": str}
             )
