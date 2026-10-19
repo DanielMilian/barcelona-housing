@@ -10,6 +10,7 @@ from .db import get_db
 from .schemas import District, Affordability, Freshness, DagRun
 from .auth import require_api_key
 from .limits import limiter
+from .cache import cache
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -131,8 +132,15 @@ FRESHNESS_TABLES = (
         )
 
 
-@app.get("/meta/freshness", response_model=Freshness, dependencies=AUTH)
-def freshness(db: Session = Depends(get_db)):
+TABLES_TTL = 300
+AIRFLOW_OK_TTL = 20
+AIRFLOW_FAIL_TTL = 5
+
+
+def table_stats(db: Session) -> dict:
+    out, hit = cache.get("tables")
+    if hit:
+        return out
     out = {}
     for t in FRESHNESS_TABLES:
         row = db.execute(text(
@@ -140,9 +148,25 @@ def freshness(db: Session = Depends(get_db)):
                           f"from analytics.{t}"
         )).one()
         out[t] = {"min_year": row.min_year, "max_year": row.max_year, "row_count": row.row_count}
-    runs = fetch_dag_runs(1, state="success", timeout=2.0)
+    cache.set("tables", out, TABLES_TTL)
+    return out
+
+
+def last_success_run():
+    runs, hit = cache.get("airflow")
+    if not hit:
+        runs = fetch_dag_runs(1, state="success", timeout=2.0)
+        # a failure is cached briefly so a recovered Airflow shows up fast
+        cache.set("airflow", runs, AIRFLOW_OK_TTL if runs is not None else AIRFLOW_FAIL_TTL)
+    return runs
+
+
+@app.get("/meta/freshness", response_model=Freshness, dependencies=AUTH)
+def freshness(db: Session = Depends(get_db)):
+    tables = table_stats(db)
+    runs = last_success_run()
     return {
-            "tables": out,
+            "tables": tables,
             "pipeline": {
                 "airflow_reachable": runs is not None,
                 "last_successful_run": runs[0] if runs else None,
