@@ -180,29 +180,34 @@ DAG_ID = "housing_pipeline"
 
 
 
-def fetch_dag_runs(limit: int, state:str | None = None, timeout: float = 5.0) -> list[dict] | None:
+def fetch_dag_runs(limit: int, state: str | None = None, timeout: float = 5.0) -> list[dict] | None:
     params = {"limit": limit, "order_by": "-execution_date"}
     if state:
         params["state"] = state
     try:
         r = httpx.get(
-                f"{AIRFLOW_URL}/api/v1/dags/{DAG_ID}/dagRuns",
-                params=params, auth=AIRFLOW_AUTH, timeout=timeout,
-                )
+            f"{AIRFLOW_URL}/api/v1/dags/{DAG_ID}/dagRuns",
+            params=params, auth=AIRFLOW_AUTH, timeout=timeout,
+        )
         r.raise_for_status()
     except httpx.HTTPError as e:
         logger.warning("airflow call failed: %s", e)
         return None
-    return [
+    try:
+        return [
             {
                 "run_id": d["dag_run_id"],
                 "state": d["state"],
                 "run_type": d["run_type"],
                 "start_date": d["start_date"],
                 "end_date": d["end_date"],
-                }
+            }
             for d in r.json()["dag_runs"]
-            ]
+        ]
+    except (KeyError, TypeError, ValueError) as e:
+        logger.warning("airflow response malformed: %r", e)
+        return None
+
 
 @app.get("/pipeline/runs", response_model=list[DagRun], dependencies=AUTH)
 @limiter.limit("10/minute")
