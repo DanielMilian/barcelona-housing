@@ -13,7 +13,7 @@ class Affordability(BaseModel):
     income_eur: float | None
     rent_eur_month: float | None
     rent_eur_m2_median: float | None
-    lease_count: float | None
+    lease_count: int | None
     rent_to_income_ratio: float | None
     income_median_to_mean: float | None
     income_median_adj_eur_est: float | None

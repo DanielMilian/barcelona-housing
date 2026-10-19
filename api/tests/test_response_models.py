@@ -27,3 +27,15 @@ def test_year_bounds_follow_constants(client):
     assert client.get(f"/affordability?year={main.MAX_YEAR}").status_code == 200
     assert client.get(f"/affordability?year={main.MIN_YEAR - 1}").status_code == 422
     assert client.get(f"/affordability?year={main.MAX_YEAR + 1}").status_code == 422
+
+
+def test_lease_count_is_integer(client):
+    rows = client.get("/affordability?year=2023").json()
+    assert rows
+    assert all(isinstance(r["lease_count"], int) for r in rows if r["lease_count"] is not None)
+
+
+def test_lease_count_is_integer(client):
+    rows = client.get("/affordability?year=2023").json()
+    assert rows
+    assert all(isinstance(r["lease_count"], int) for r in rows if r["lease_count"] is not None)
