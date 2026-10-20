@@ -51,6 +51,6 @@ def housing_pipeline():
     dbt_deps = BashOperator(task_id="dbt_deps", bash_command=f"{DBT} deps {DBT_PROJ}")
     dbt_build = BashOperator(task_id="dbt_build", bash_command=f"{DBT} build {DBT_ARGS}")
 
-    [extract_ine(), extract_serpavi()] >> load_raw() >> dbt_build >> export_mart()
+    [extract_ine(), extract_serpavi()] >> load_raw() >> dbt_deps >> dbt_build >> export_mart()
 
 housing_pipeline()
