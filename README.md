@@ -73,7 +73,7 @@ curl -H "X-API-Key: $API_KEY" "http://localhost:8001/affordability?year=2023&sor
 
 | Endpoint | Description | Notes |
 |---|---|---|
-| `GET /health` | Health check | No API key, exempt from rate limits |
+| `GET /health` | Health check; also verifies the warehouse connection | No API key, exempt from rate limits; returns an error if the warehouse is down |
 | `GET /districts` | List the 10 districts | |
 | `GET /districts/{n}` | One district | 404 if unknown |
 | `GET /districts/{n}/affordability?year_from&year_to` | Affordability time series for a district | Years validated to 2015-2023 (422 otherwise) |
@@ -202,7 +202,7 @@ docker compose exec airflow-webserver airflow dags trigger housing_pipeline
 Wait until the run is `success` (`export_mart` is the last task), then:
 
 ```bash
-set -a; source .env; set +a
+API_KEY=$(grep '^API_KEY=' .env | cut -d= -f2-)   # plain shell variable, not exported
 curl http://localhost:8001/health
 curl -H "X-API-Key: $API_KEY" "http://localhost:8001/affordability?year=2023"
 ```
@@ -216,8 +216,10 @@ The tests run against the real warehouse (read-only) with Airflow mocked, so the
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r api/requirements.txt -r api/requirements-dev.txt
-cd api && set -a; source ../.env; set +a; python -m pytest -q
+(cd api && set -a && source ../.env && python -m pytest -q)
 ```
+
+Run the tests in a subshell as shown, and avoid `source .env` in your interactive shell: Compose gives exported shell variables priority over `.env`, so they would override your real settings the next time you run `docker compose`.
 
 To run dbt outside Docker: `cd dbt && dbt deps` (uses `dbt_utils`).
 
