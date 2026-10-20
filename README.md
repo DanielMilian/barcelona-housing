@@ -10,11 +10,15 @@ Public data (INE, Ministry of Housing) is extracted, loaded into Postgres, model
 
 ## Key findings
 
-- **Ciutat Vella is the least affordable district in every year.** Renting there takes about 29% of average household net income in 2023, peaking at 33% in 2020.
-- **Sarrià-Sant Gervasi is the most affordable**, at about 17% in 2023.
-- **Affordability worsened across districts up to 2020-2021 and eased slightly afterwards**, but most districts remain above their 2015 level.
+"Rent burden" below means monthly rent × 12 divided by the district's average household net income. It compares rent with local incomes; it does not say where renting is cheap in absolute terms.
+
+- **Ciutat Vella has the highest rent burden in every year**: about 29% of average household net income in 2023, peaking at 33% in 2020.
+- **Sarrià-Sant Gervasi has the lowest, about 17% in 2023, but that does not make it cheap to rent.** It has the highest average monthly rent of the ten districts (1,173 € vs 805 € in Ciutat Vella) and the second-highest median rent per m² (14.70 €). Its average household income is higher still (81,478 € vs 33,802 €, about 2.4 times Ciutat Vella's), and top earners pull that average up more there than anywhere else (median-to-mean income ratio 0.74, the lowest of the ten), so the ratio comes out low.
+- **The income in the denominator covers all households, owners and renters alike.** Renters tend to earn less than their district's average, so the ratio probably understates the burden on actual renters, by different amounts in different districts. Read the ranking as relative pressure between districts, not as what renters pay out of their own income.
+- **On average, rent burden rose until 2020 and eased slightly afterwards**, but nine of the ten districts are still above their 2015 level. The exception is Ciutat Vella, which is back slightly below its own 2015 level (28.6% vs 29.3%) while remaining the most burdened.
 - In Ciutat Vella, rent grew faster than income until 2022. In 2023 income overtook it (nominal indices, 2015 = 100), which is why the ratio fell 1.3 percentage points that year.
-- **Median sensitivity check:** using a median-adjusted income estimate raises every ratio (Ciutat Vella 2023: 34.3% vs 28.6%). The 2020 peak and the most and least affordable districts (Ciutat Vella, Sarrià-Sant Gervasi) do not change in 2015, 2020 and 2023. Some mid-table positions do move (for example Nou Barris and Sant Andreu rank as less burdened).
+- **The median-adjusted view limits the pull of top earners.** Average income is lifted by the highest earners, which lowers the ratio most where incomes are most skewed. To see the burden with less of that effect, the dashboard also offers a median-adjusted estimate: average income scaled by each district's median-to-mean ratio. It raises every ratio (Ciutat Vella 2023: 34.3% vs 28.6%) and closes the gap at the bottom: Sarrià-Sant Gervasi rises from 17.3% to about 23.5%, close to the middle group (the eight districts between the two extremes sit at roughly 25-28%), while Ciutat Vella stays well above all of them. It is an estimate, not a direct measure; see [Median sensitivity](#median-sensitivity-estimate) for how it is built and its limits.
+- **The extremes do not change.** Ciutat Vella and Sarrià-Sant Gervasi stay the highest and lowest in 2015, 2020 and 2023 under both views. Some mid-table positions do move (for example Nou Barris and Sant Andreu rank as less burdened).
 
 ## Architecture
 
