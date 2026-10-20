@@ -45,6 +45,20 @@ flowchart LR
 
 All services run in Docker Compose: `warehouse` (Postgres 16), `airflow-db`, `airflow-init`, `airflow-webserver`, `airflow-scheduler`, `api` and `dashboard`.
 
+## Screenshots
+
+**Dashboard, reading from the live API**
+
+![Dashboard](docs/dashboard.png)
+
+**Airflow DAG after a successful run**
+
+![Airflow DAG graph after a successful run](docs/airflow-dag.png)
+
+**Interactive API docs**
+
+![FastAPI Swagger docs](docs/api-docs.png)
+
 ## API
 
 Interactive docs at http://localhost:8001/docs (open, like `/openapi.json`). Every route except `/health` needs an `X-API-Key` header.
