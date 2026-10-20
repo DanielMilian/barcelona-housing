@@ -112,7 +112,7 @@ Limits:
 
 - The headline ratio compares average rent with the district's **average household income**, not with the income of renter households, who tend to earn less. Read it as a relative measure between districts and years rather than an exact burden. See the median sensitivity section above.
 - District-level data only: no neighbourhood detail, and years after 2023 are not included.
-- The hosted demo serves the **CSV snapshot** (`export/mart_district_affordability.csv`), because the warehouse runs locally. The snapshot is written by the DAG's `export_mart` task, so running the pipeline locally modifies that tracked file; don't commit it by accident.
+- The hosted demo serves the **CSV snapshot** (`export/mart_district_affordability.csv`), because the warehouse runs locally. The snapshot is written by the DAG's `export_mart` task, so a local pipeline run rewrites that tracked file. The export is deterministic, so it only shows up in `git status` when the data changed; don't commit it by accident.
 
 ## Run it locally
 
@@ -228,7 +228,7 @@ docs/       images
 ## Design decisions
 
 - **Idempotent pipeline.** Rerunning the DAG does not duplicate rows.
-- **Tested models.** `dbt build` runs the models and tests, including uniqueness of the (district, year) grain on the income fact and the mart. The 2023 mart values were spot-checked against hand calculations, and the original mean-based columns were regression-checked as unchanged after adding the median columns.
+- **Tested models.** `dbt build` runs 55 nodes (9 models, 1 seed, 45 tests), all passing, including uniqueness of the (district, year) grain on the income fact and the mart. The 2023 mart values were spot-checked against hand calculations, and the original mean-based columns were regression-checked as unchanged after adding the median columns.
 - **Sensitivity, not replacement.** The median-adjusted view is additive and labelled as an estimate; the mean-based ratio stays the headline.
 - **Read-only serving layer.** The API only reads the mart, and reaches Airflow through a Viewer-role user, so a leaked API key cannot trigger or modify pipeline runs.
 - **Fail closed.** If `API_KEY` is unset the API answers 503 instead of running open.
